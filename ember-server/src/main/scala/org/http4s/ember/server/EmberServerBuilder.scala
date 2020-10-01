@@ -14,7 +14,7 @@ import fs2.io.tcp.SocketGroup
 import fs2.io.tcp.SocketOptionMapping
 import fs2.io.tls._
 import org.http4s._
-import org.http4s.server.Server
+import org.http4s.server._
 import scala.concurrent.duration._
 import java.net.InetSocketAddress
 import _root_.io.chrisdavenport.log4cats.Logger
@@ -171,6 +171,29 @@ final class EmberServerBuilder[F[_]: Concurrent: Timer: ContextShift] private (
 }
 
 object EmberServerBuilder {
+  implicit def serverBuildableInstance[F[_]](implicit C: Concurrent[F]): ServerBuildable[F, EmberServerBuilder[F]] =
+    new ServerBuildable[F, EmberServerBuilder[F]] {
+      override final protected implicit def F: Concurrent[F] = C
+
+      override final def bindSocketAddress(a: EmberServerBuilder[F])(socketAddress: InetSocketAddress): EmberServerBuilder[F] =
+        a.withHost(socketAddress.getHostName).withPort(socketAddress.getPort)
+
+      override final def withServiceErrorHandler(a: EmberServerBuilder[F])(
+        serviceErrorHandler: Request[F] => PartialFunction[Throwable, F[Response[F]]]): EmberServerBuilder[F] = ??? // Ember doesn't support generating an error response in an effect.
+
+
+      /** Returns a Server resource.  The resource is not acquired until the
+        * server is started and ready to accept requests.
+        */
+      override final def resource(a: EmberServerBuilder[F]): Resource[F, Server] =
+        a.build
+
+      /** Set the banner to display when the server starts up */
+      override final def withBanner(a: EmberServerBuilder[F])(banner: scala.collection.immutable.Seq[String]): EmberServerBuilder[F] =
+        a // Ember doesn't expose it's logger, or a mechanism to hook it.
+    }
+
+
   def default[F[_]: Concurrent: Timer: ContextShift]: EmberServerBuilder[F] =
     new EmberServerBuilder[F](
       host = Defaults.host,

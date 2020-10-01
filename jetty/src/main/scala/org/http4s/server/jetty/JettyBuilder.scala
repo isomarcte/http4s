@@ -295,6 +295,28 @@ sealed class JettyBuilder[F[_]] private (
 }
 
 object JettyBuilder {
+  implicit def serverBuildableInstance[F[_]](implicit C: Concurrent[F]): ServerBuildable[F, JettyBuilder[F]] =
+    new ServerBuildable[F, JettyBuilder[F]] {
+      override final protected implicit def F: Concurrent[F] = C
+
+      override final def bindSocketAddress(a: JettyBuilder[F])(socketAddress: InetSocketAddress): JettyBuilder[F] =
+        a.bindSocketAddress(socketAddress)
+
+      override final def withServiceErrorHandler(a: JettyBuilder[F])(
+        serviceErrorHandler: Request[F] => PartialFunction[Throwable, F[Response[F]]]): JettyBuilder[F] =
+        a.withServiceErrorHandler(serviceErrorHandler)
+
+      /** Returns a Server resource.  The resource is not acquired until the
+        * server is started and ready to accept requests.
+        */
+      override final def resource(a: JettyBuilder[F]): Resource[F, Server] =
+        a.resource
+
+      /** Set the banner to display when the server starts up */
+      override final def withBanner(a: JettyBuilder[F])(banner: immutable.Seq[String]): JettyBuilder[F] =
+        a.withBanner(banner)
+    }
+
   def apply[F[_]: ConcurrentEffect] =
     new JettyBuilder[F](
       socketAddress = defaults.SocketAddress,

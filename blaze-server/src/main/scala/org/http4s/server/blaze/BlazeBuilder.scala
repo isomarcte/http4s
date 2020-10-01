@@ -247,6 +247,28 @@ object BlazeBuilder {
       serviceErrorHandler = DefaultServiceErrorHandler,
       banner = ServerBuilder.DefaultBanner
     )
+
+  implicit def serverBuildableInstance[F[_]](implicit C: Concurrent[F]): ServerBuildable[F, BlazeBuilder[F]] =
+    new ServerBuildable[F, BlazeBuilder[F]] {
+      override final protected implicit def F: Concurrent[F] = C
+
+      override final def bindSocketAddress(a: BlazeBuilder[F])(socketAddress: InetSocketAddress): BlazeBuilder[F] =
+        a.bindSocketAddress(socketAddress)
+
+      override final def withServiceErrorHandler(a: BlazeBuilder[F])(
+        serviceErrorHandler: Request[F] => PartialFunction[Throwable, F[Response[F]]]): BlazeBuilder[F] =
+        a.withServiceErrorHandler(serviceErrorHandler)
+
+      /** Returns a Server resource.  The resource is not acquired until the
+        * server is started and ready to accept requests.
+        */
+      override final def resource(a: BlazeBuilder[F]): Resource[F, Server] =
+        a.resource
+
+      /** Set the banner to display when the server starts up */
+      override final def withBanner(a: BlazeBuilder[F])(banner: immutable.Seq[String]): BlazeBuilder[F] =
+        a.withBanner(banner)
+    }
 }
 
 private final case class ServiceMount[F[_]](service: HttpRoutes[F], prefix: String)

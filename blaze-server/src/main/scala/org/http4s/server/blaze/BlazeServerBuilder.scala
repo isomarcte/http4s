@@ -10,7 +10,7 @@ package blaze
 
 import cats.{Alternative, Applicative}
 import cats.data.Kleisli
-import cats.effect.Sync
+import cats.effect._
 import cats.implicits._
 import cats.effect.{ConcurrentEffect, Resource, Timer}
 import _root_.io.chrisdavenport.vault._
@@ -388,6 +388,28 @@ class BlazeServerBuilder[F[_]](
 }
 
 object BlazeServerBuilder {
+  implicit def serverBuildableInstance[F[_]](implicit C: Concurrent[F]): ServerBuildable[F, BlazeServerBuilder[F]] =
+    new ServerBuildable[F, BlazeServerBuilder[F]] {
+      override final protected implicit def F: Concurrent[F] = C
+
+      override final def bindSocketAddress(a: BlazeServerBuilder[F])(socketAddress: InetSocketAddress): BlazeServerBuilder[F] =
+        a.bindSocketAddress(socketAddress)
+
+      override final def withServiceErrorHandler(a: BlazeServerBuilder[F])(
+        serviceErrorHandler: Request[F] => PartialFunction[Throwable, F[Response[F]]]): BlazeServerBuilder[F] =
+        a.withServiceErrorHandler(serviceErrorHandler)
+
+      /** Returns a Server resource.  The resource is not acquired until the
+        * server is started and ready to accept requests.
+        */
+      override final def resource(a: BlazeServerBuilder[F]): Resource[F, Server] =
+        a.resource
+
+      /** Set the banner to display when the server starts up */
+      override final def withBanner(a: BlazeServerBuilder[F])(banner: immutable.Seq[String]): BlazeServerBuilder[F] =
+        a.withBanner(banner)
+    }
+
   @deprecated("Use BlazeServerBuilder.apply with explicit executionContext instead", "0.20.22")
   def apply[F[_]](implicit F: ConcurrentEffect[F], timer: Timer[F]): BlazeServerBuilder[F] =
     new BlazeServerBuilder(
